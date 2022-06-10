@@ -27,7 +27,6 @@ dot -Tpng diagram.dot > diagram.png
 
 The resulting diagram is in the generated `diagram.png` image file.
 
-An example diagram is given, captured from a real deployment of the [Red Hat Single Sign-On](https://access.redhat.com/products/red-hat-single-sign-on):
-![](./examples/rhsso.png)
+An [example diagram](./examples/rhsso.png) is given, captured from a real deployment of the [Red Hat Single Sign-On](https://access.redhat.com/products/red-hat-single-sign-on).
 
-In alternative you can paste the content of the generated `diagram.dot` file in an online visualizer like [https://dreampuf.github.io/GraphvizOnline](https://dreampuf.github.io/GraphvizOnline/)
+In alternative, you can paste the content of the generated `diagram.dot` file in an online visualizer like [https://dreampuf.github.io/GraphvizOnline](https://dreampuf.github.io/GraphvizOnline/) and enjoy the result.
