@@ -20,7 +20,6 @@ Configure the target namespaces in [config.yaml](./config.yaml), then run as:
 ```shell
 go run exporter.go
 ```
-
 Install [Graphviz](https://graphviz.org/) and visualize it as:
 ```shell
 dot -Tpng diagram.dot > diagram.png
@@ -30,3 +29,5 @@ The resulting diagram is in the generated `diagram.png` image file.
 
 An example diagram is given, captured from a real deployment of the [Red Hat Single Sign-On](https://access.redhat.com/products/red-hat-single-sign-on):
 ![](./examples/rhsso.png)
+
+In alternative you can paste the content of the generated `diagram.dot` file in an online visualizer like [https://dreampuf.github.io/GraphvizOnline](https://dreampuf.github.io/GraphvizOnline/)
