@@ -7,7 +7,7 @@ Configure the target namespaces in [](./config.yaml), then run as:
 go run exporter.go
 ```
 
-Visualize using [Graphviz](https://graphviz.org/) as:
+Install [Graphviz](https://graphviz.org/) and visualize it as:
 ```shell
 dot -Tpng diagram.dot > diagram.png
 ```
