@@ -141,6 +141,9 @@ func diagramOf(ns string) error {
 	diagram.WriteString(fmt.Sprintf("label =\"%s\";\n", ns))
 	clusterCount++
 
+	//TBD: we should move to per NS model builder
+	resourcesByKind = make(map[string][]exporter.Resource)
+
 	fmt.Printf("Running on NS %s\n", ns)
 	roleBindings, err := authClient.RoleBindings(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
