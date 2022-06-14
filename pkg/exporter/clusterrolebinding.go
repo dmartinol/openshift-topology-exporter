@@ -21,7 +21,7 @@ func (c ClusterRoleBinding) Name() string {
 	return c.Delegate.Name
 }
 func (c ClusterRoleBinding) Label() string {
-	return c.Name()
+	return fmt.Sprintf("crb %s", c.Delegate.Name)
 }
 func (c ClusterRoleBinding) Icon() string {
 	return "images/role.png"

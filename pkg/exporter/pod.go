@@ -46,7 +46,10 @@ func (p Pod) ConnectTo(kind string, resources []Resource) string {
 	diagram := strings.Builder{}
 	for _, resource := range resources {
 		serviceAccount := resource.(ServiceAccount)
-		diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", p.Id(), serviceAccount.Id()))
+		if strings.Compare(p.Delegate.Spec.ServiceAccountName, serviceAccount.Name()) == 0 &&
+			strings.Compare(p.Delegate.Namespace, serviceAccount.Delegate.Namespace) == 0 {
+			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", p.Id(), serviceAccount.Id()))
+		}
 	}
 	return diagram.String()
 }

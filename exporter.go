@@ -211,7 +211,7 @@ func diagramOf(ns string) error {
 		return err
 	}
 	for _, pod := range pods.Items {
-		fmt.Printf("Found %s/%s\n", pod.Kind, pod.Name)
+		fmt.Printf("Found %s/%s with SA %s\n", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
 		resource := exporter.Pod{Delegate: pod}
 		addResource(resource)
 
@@ -219,20 +219,19 @@ func diagramOf(ns string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Found ServiceAccount %s/%s\n", serviceAccount.Kind, serviceAccount.Name)
 		saResource := exporter.ServiceAccount{Delegate: *serviceAccount}
 		addResource(saResource)
 
 		saRoleBindings := saResource.TheRoleBindings(roleBindings)
 		for _, roleBinding := range saRoleBindings {
-			fmt.Printf("Found RoleBinding %s/%s\n", roleBinding.RoleRef.Name, roleBinding.UserNames)
+			fmt.Printf("For SA %s found RoleBinding %s/%s\n", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
 			rbResource := exporter.RoleBinding{Delegate: roleBinding}
 			addResource(rbResource)
 			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
 		}
 		saClusterRoleBindings := saResource.TheClusterRoleBindings(clusterRoleBindings)
 		for _, clusterRoleBinding := range saClusterRoleBindings {
-			fmt.Printf("Found ClusterRoleBinding %s/%s\n", clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
+			fmt.Printf("For SA %s found ClusterRoleBinding %s/%s\n", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
 			rbResource := exporter.ClusterRoleBinding{Delegate: clusterRoleBinding}
 			addResource(rbResource)
 			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
@@ -247,7 +246,7 @@ func diagramOf(ns string) error {
 }
 
 func addResource(resource exporter.Resource) {
-	if lookupByKindAndName(resource.Kind(), resource.Name()) == nil {
+	if lookupByKindAndName(resource.Kind(), resource.Id()) == nil {
 		resourcesByKind[resource.Kind()] = append(resourcesByKind[resource.Kind()], resource)
 
 		color, hasStatusColor := resource.StatusColor()

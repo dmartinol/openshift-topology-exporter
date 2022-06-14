@@ -17,13 +17,13 @@ func (s ServiceAccount) Kind() string {
 	return "ServiceAccount"
 }
 func (s ServiceAccount) Id() string {
-	return fmt.Sprintf("sa %s", s.Delegate.Name)
+	return fmt.Sprintf("system:serviceaccount:%s:%s", s.Delegate.Namespace, s.Delegate.Name)
 }
 func (s ServiceAccount) Name() string {
 	return s.Delegate.Name
 }
 func (s ServiceAccount) Label() string {
-	return fmt.Sprintf("system:serviceaccount:%s:%s", s.Delegate.Namespace, s.Delegate.Name)
+	return s.Id()
 }
 func (s ServiceAccount) Icon() string {
 	return "images/sa.png"
@@ -38,28 +38,23 @@ func (s ServiceAccount) IsOwnerOf(owner metav1.OwnerReference) bool {
 	return false
 }
 func (s ServiceAccount) ConnectedKinds() []string {
-	return []string{"RoleBinging", "ClusterRoleBinding"}
+	return []string{}
 }
 func (s ServiceAccount) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-
-	// for _, resource := range resources {
-	// 	pod := resource.(Pod)
-	// 	if s.matchSelector(pod) {
-	// 		diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", s.Id(), pod.Id()))
-	// 	}
-	// }
-
-	return diagram.String()
+	return ""
 }
 
 func (s ServiceAccount) TheRoleBindings(roleBindings *authv1T.RoleBindingList) []authv1T.RoleBinding {
 	var saRoleBindings []authv1T.RoleBinding
 	userName := s.Label()
 	for _, roleBinding := range roleBindings.Items {
-		for _, rbUserName := range roleBinding.UserNames {
-			if strings.Compare(rbUserName, userName) == 0 {
-				saRoleBindings = append(saRoleBindings, roleBinding)
+		for _, subject := range roleBinding.Subjects {
+			if strings.Compare(subject.Kind, s.Kind()) == 0 {
+				for _, rbUserName := range roleBinding.UserNames {
+					if strings.Compare(rbUserName, userName) == 0 && strings.Compare(s.Delegate.Namespace, subject.Namespace) == 0 {
+						saRoleBindings = append(saRoleBindings, roleBinding)
+					}
+				}
 			}
 		}
 	}
@@ -68,10 +63,14 @@ func (s ServiceAccount) TheRoleBindings(roleBindings *authv1T.RoleBindingList) [
 func (s ServiceAccount) TheClusterRoleBindings(clusterRoleBindings *authv1T.ClusterRoleBindingList) []authv1T.ClusterRoleBinding {
 	var saClusterRoleBindings []authv1T.ClusterRoleBinding
 	userName := s.Label()
-	for _, clusterRoleBinding := range clusterRoleBindings.Items {
-		for _, rbUserName := range clusterRoleBinding.UserNames {
-			if strings.Compare(rbUserName, userName) == 0 && strings.Compare(s.Delegate.Namespace, clusterRoleBinding.Namespace) == 0 {
-				saClusterRoleBindings = append(saClusterRoleBindings, clusterRoleBinding)
+	for _, roleBinding := range clusterRoleBindings.Items {
+		for _, subject := range roleBinding.Subjects {
+			if strings.Compare(subject.Kind, s.Kind()) == 0 {
+				for _, rbUserName := range roleBinding.UserNames {
+					if strings.Compare(rbUserName, userName) == 0 && strings.Compare(s.Delegate.Namespace, subject.Namespace) == 0 {
+						saClusterRoleBindings = append(saClusterRoleBindings, roleBinding)
+					}
+				}
 			}
 		}
 	}
