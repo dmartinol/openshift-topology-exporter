@@ -40,7 +40,6 @@ func main() {
 }
 
 var exporterConfig ExporterConfig
-var config rest.Config
 var routeClient *routev1.RouteV1Client
 var appsClient *appsv1.AppsV1Client
 var appsV1Client *k8appsv1client.AppsV1Client
@@ -153,7 +152,7 @@ func diagramOf(ns string) (string, error) {
 	diagram.WriteString(fmt.Sprintf("label =\"%s\";\n", ns))
 	clusterCount++
 
-	fmt.Println("Running on NS %s", ns)
+	fmt.Printf("Running on NS %s\n", ns)
 	roleBindings, err := authClient.RoleBindings(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
@@ -191,9 +190,10 @@ func diagramOf(ns string) (string, error) {
 	for _, deployment := range deployments.Items {
 		fmt.Printf("Found %s/%s\n", deployment.Kind, deployment.Name)
 		diagram.WriteString(deploymentNodeOf(deployment))
+		diagram.WriteString(addOwners(deployment.OwnerReferences, deploymentLabel(deployment)))
 	}
 
-	fmt.Println("=== SattefulSets ===")
+	fmt.Println("=== StatefulSets ===")
 	statefulSets, err := appsV1Client.StatefulSets(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
@@ -201,6 +201,7 @@ func diagramOf(ns string) (string, error) {
 	for _, statefulSet := range statefulSets.Items {
 		fmt.Printf("Found %s/%s\n", statefulSet.Kind, statefulSet.Name)
 		diagram.WriteString(statefulSetNodeOf(statefulSet))
+		diagram.WriteString(addOwners(statefulSet.OwnerReferences, statefulSetLabel(statefulSet)))
 	}
 
 	fmt.Println("=== DeploymentConfigs ===")
@@ -211,6 +212,7 @@ func diagramOf(ns string) (string, error) {
 	for _, deploymentConfig := range deploymentConfigs.Items {
 		fmt.Printf("Found %s/%s\n", deploymentConfig.Kind, deploymentConfig.Name)
 		diagram.WriteString(deploymentConfigNodeOf(deploymentConfig))
+		diagram.WriteString(addOwners(deploymentConfig.OwnerReferences, deploymentConfigLabel(deploymentConfig)))
 	}
 
 	fmt.Println("=== Pods ===")
@@ -221,6 +223,8 @@ func diagramOf(ns string) (string, error) {
 	for _, pod := range pods.Items {
 		fmt.Printf("Found %s/%s\n", pod.Kind, pod.Name)
 		diagram.WriteString(podNodeOf(pod))
+		// Pod -> ReplicationController -> DeploymentConfig
+		// diagram.WriteString(addOwners(pod.OwnerReferences, podLabel(pod)))
 
 		serviceAccount, err := coreClient.ServiceAccounts(ns).Get(context.TODO(), pod.Spec.ServiceAccountName, metav1.GetOptions{})
 		if err != nil {
@@ -298,6 +302,37 @@ func roleNodeOf(roleBinding authv1T.RoleBinding) string {
 	diagram := strings.Builder{}
 
 	diagram.WriteString(fmt.Sprintf("\"%s\" [ image=\"images/role.png\", labelloc=b ];\n", roleLabel(roleBinding.RoleRef.Name)))
+	return diagram.String()
+}
+
+func addOwners(owners []metav1.OwnerReference, childLabel string) string {
+	diagram := strings.Builder{}
+	for _, owner := range owners {
+		fmt.Printf("Owner is %s/%s/%s\n", owner.Kind, owner.APIVersion, owner.Name)
+		diagram.WriteString(addOwner(owner, childLabel))
+	}
+	return diagram.String()
+}
+
+func addOwner(owner metav1.OwnerReference, childLabel string) string {
+	diagram := strings.Builder{}
+	if !isManagedKind(owner.Kind) {
+		diagram.WriteString(ownerNodeOf(owner))
+	} else {
+		fmt.Printf("Discarding owner of managed kind %s\n", owner.Kind)
+	}
+	diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [label=\"owns\"];\n", ownerLabel(owner), childLabel))
+	return diagram.String()
+}
+
+func ownerNodeOf(owner metav1.OwnerReference) string {
+	diagram := strings.Builder{}
+
+	icon := "crd.png"
+	if strings.Compare(owner.Kind, "ClusterServiceVersion") == 0 {
+		icon = "operator.png"
+	}
+	diagram.WriteString(fmt.Sprintf("\"%s\" [ image=\"images/%s\", labelloc=b ];\n", ownerLabel(owner), icon))
 	return diagram.String()
 }
 
@@ -438,6 +473,20 @@ func serviceAccountLabel(serviceAccount v1.ServiceAccount) string {
 }
 func roleLabel(roleName string) string {
 	return fmt.Sprintf("Role %s", roleName)
+}
+
+func ownerLabel(owner metav1.OwnerReference) string {
+	if strings.Compare(owner.Kind, "ClusterServiceVersion") == 0 {
+		return owner.Name
+	}
+	return fmt.Sprintf("%s %s", owner.Kind, owner.Name)
+}
+
+var managedKinds = map[string]string{"Route": "", "Service": "", "Deployment": "", "StatefulSet": "", "Pod": ""}
+
+func isManagedKind(kind string) bool {
+	_, hasKey := managedKinds[kind]
+	return hasKey
 }
 
 func legend() string {
