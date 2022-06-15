@@ -222,21 +222,22 @@ func diagramOf(ns string) error {
 			return err
 		}
 		saResource := exporter.ServiceAccount{Delegate: *serviceAccount}
-		addResource(saResource)
-
-		saRoleBindings := saResource.TheRoleBindings(roleBindings)
-		for _, roleBinding := range saRoleBindings {
-			fmt.Printf("For SA %s found RoleBinding %s/%s\n", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
-			rbResource := exporter.RoleBinding{Delegate: roleBinding}
-			addResource(rbResource)
-			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
-		}
-		saClusterRoleBindings := saResource.TheClusterRoleBindings(clusterRoleBindings)
-		for _, clusterRoleBinding := range saClusterRoleBindings {
-			fmt.Printf("For SA %s found ClusterRoleBinding %s/%s\n", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
-			rbResource := exporter.ClusterRoleBinding{Delegate: clusterRoleBinding}
-			addResource(rbResource)
-			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
+		added := addResource(saResource)
+		if added {
+			saRoleBindings := saResource.TheRoleBindings(roleBindings)
+			for _, roleBinding := range saRoleBindings {
+				fmt.Printf("For SA %s found RoleBinding %s/%s\n", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
+				rbResource := exporter.RoleBinding{Delegate: roleBinding}
+				addResource(rbResource)
+				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
+			}
+			saClusterRoleBindings := saResource.TheClusterRoleBindings(clusterRoleBindings)
+			for _, clusterRoleBinding := range saClusterRoleBindings {
+				fmt.Printf("For SA %s found ClusterRoleBinding %s/%s\n", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
+				rbResource := exporter.ClusterRoleBinding{Delegate: clusterRoleBinding}
+				addResource(rbResource)
+				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
+			}
 		}
 	}
 
@@ -247,7 +248,7 @@ func diagramOf(ns string) error {
 	return nil
 }
 
-func addResource(resource exporter.Resource) {
+func addResource(resource exporter.Resource) bool {
 	if lookupByKindAndId(resource.Kind(), resource.Id()) == nil {
 		resourcesByKind[resource.Kind()] = append(resourcesByKind[resource.Kind()], resource)
 
@@ -260,9 +261,10 @@ func addResource(resource exporter.Resource) {
 				resource.Id(), resource.Label(), resource.Icon()))
 		}
 		fmt.Printf("Added instance %s of kind %s\n", resource.Label(), resource.Kind())
-	} else {
-		fmt.Printf("Skipped already added instance %s of kind %s\n", resource.Label(), resource.Kind())
+		return true
 	}
+	fmt.Printf("Skipped already added instance %s of kind %s\n", resource.Label(), resource.Kind())
+	return false
 }
 
 func connectResources() {
