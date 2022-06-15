@@ -13,7 +13,6 @@ import (
 	"github.com/dmartinol/openshift-topology-exporter/pkg/exporter"
 
 	authv1T "github.com/openshift/api/authorization/v1"
-	routev1T "github.com/openshift/api/route/v1"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	authv1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
 	routev1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
@@ -347,13 +346,6 @@ func clusterDiagramOf(namespaces []string) error {
 	}
 	diagram.WriteString("\n}")
 	return nil
-}
-
-func routeLabel(route routev1T.Route) string {
-	return fmt.Sprintf("Route %s", route.Name)
-}
-func roleLabel(roleName string) string {
-	return fmt.Sprintf("Role %s", roleName)
 }
 
 func legend() {
