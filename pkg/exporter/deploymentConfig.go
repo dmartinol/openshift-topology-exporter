@@ -43,9 +43,8 @@ func (d DeploymentConfig) IsOwnerOf(owner metav1.OwnerReference) bool {
 	return false
 }
 func (d DeploymentConfig) ConnectedKinds() []string {
-	return []string{"Pod"}
+	return []string{}
 }
 func (d DeploymentConfig) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-	return diagram.String()
+	return ""
 }

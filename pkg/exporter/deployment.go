@@ -43,22 +43,8 @@ func (d Deployment) IsOwnerOf(owner metav1.OwnerReference) bool {
 	return false
 }
 func (d Deployment) ConnectedKinds() []string {
-	return []string{"Pod"}
+	return []string{}
 }
 func (d Deployment) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-
-	for _, resource := range resources {
-		pod := resource.(Pod)
-		for _, owner := range pod.Delegate.OwnerReferences {
-			// fmt.Printf("Owner %s, %s, comparing with %s=%s\n", owner.Kind, owner.Name, deploymentConfig.Name+"-", strings.HasPrefix(owner.Name, deploymentConfig.Name+"-"))
-			if strings.Compare(owner.Kind, "ReplicaSet") == 0 && strings.HasPrefix(owner.Name, d.Delegate.Name+"-") {
-				fmt.Printf("ADDING CONNECTION %s %s\n", d.Label(), pod.Label())
-				fmt.Printf("\"%s\" -> \"%s\"\n", d.Id(), pod.Id())
-				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", d.Id(), pod.Id()))
-			}
-		}
-	}
-
-	return diagram.String()
+	return ""
 }

@@ -249,7 +249,7 @@ func diagramOf(ns string) error {
 }
 
 func addResource(resource exporter.Resource) {
-	if lookupByKindAndName(resource.Kind(), resource.Id()) == nil {
+	if lookupByKindAndId(resource.Kind(), resource.Id()) == nil {
 		resourcesByKind[resource.Kind()] = append(resourcesByKind[resource.Kind()], resource)
 
 		color, hasStatusColor := resource.StatusColor()
@@ -278,9 +278,9 @@ func connectResources() {
 	}
 }
 
-func lookupByKindAndName(kind string, name string) exporter.Resource {
+func lookupByKindAndId(kind string, id string) exporter.Resource {
 	for _, resource := range resourcesByKind[kind] {
-		if strings.Compare(name, resource.Name()) == 0 {
+		if strings.Compare(id, resource.Id()) == 0 {
 			return resource
 		}
 	}
