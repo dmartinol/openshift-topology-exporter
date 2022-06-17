@@ -2,9 +2,9 @@ package model
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/dmartinol/openshift-topology-exporter/pkg/config"
+	logger "github.com/dmartinol/openshift-topology-exporter/pkg/log"
 	authv1T "github.com/openshift/api/authorization/v1"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	authv1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
@@ -73,7 +73,7 @@ func (builder *ModelBuilder) buildCluster() error {
 		return err
 	}
 	for _, clusterRoleBinding := range builder.clusterRoleBindings.Items {
-		fmt.Printf("Found ClusterRoleBindings %s/%s\n", clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
+		logger.Debugf("Found ClusterRoleBindings %s/%s", clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
 	}
 
 	for _, namespace := range builder.exporterConfig.Namespaces {
@@ -88,77 +88,77 @@ func (builder *ModelBuilder) buildCluster() error {
 func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	builder.namespaceModel = builder.topologyModel.AddNamespace(namespace)
 
-	fmt.Printf("Running on NS %s\n", namespace)
+	logger.Infof("Running on NS %s", namespace)
 	roleBindings, err := builder.authClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, roleBinding := range roleBindings.Items {
-		fmt.Printf("Found RoleBinding %s/%s\n", roleBinding.RoleRef.Name, roleBinding.UserNames)
+		logger.Debugf("Found RoleBinding %s/%s", roleBinding.RoleRef.Name, roleBinding.UserNames)
 	}
 
-	fmt.Println("=== Routes ===")
+	logger.Info("=== Routes ===")
 	routes, err := builder.routeClient.Routes(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, route := range routes.Items {
-		fmt.Printf("Found %s/%s\n", route.Kind, route.Name)
+		logger.Debugf("Found %s/%s", route.Kind, route.Name)
 		resource := Route{Delegate: route}
 		builder.namespaceModel.AddResource(resource)
 	}
 
-	fmt.Println("=== Services ===")
+	logger.Info("=== Services ===")
 	services, err := builder.coreClient.Services(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, service := range services.Items {
-		fmt.Printf("Found %s/%s\n", service.Kind, service.Name)
+		logger.Debugf("Found %s/%s", service.Kind, service.Name)
 		resource := Service{Delegate: service}
 		builder.namespaceModel.AddResource(resource)
 	}
 
-	fmt.Println("=== Deployments ===")
+	logger.Info("=== Deployments ===")
 	deployments, err := builder.appsV1Client.Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, deployment := range deployments.Items {
-		fmt.Printf("Found %s/%s\n", deployment.Kind, deployment.Name)
+		logger.Debugf("Found %s/%s", deployment.Kind, deployment.Name)
 		resource := Deployment{Delegate: deployment}
 		builder.namespaceModel.AddResource(resource)
 	}
 
-	fmt.Println("=== StatefulSets ===")
+	logger.Info("=== StatefulSets ===")
 	statefulSets, err := builder.appsV1Client.StatefulSets(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, statefulSet := range statefulSets.Items {
-		fmt.Printf("Found %s/%s\n", statefulSet.Kind, statefulSet.Name)
+		logger.Debugf("Found %s/%s", statefulSet.Kind, statefulSet.Name)
 		resource := StatefulSet{Delegate: statefulSet}
 		builder.namespaceModel.AddResource(resource)
 	}
 
-	fmt.Println("=== DeploymentConfigs ===")
+	logger.Info("=== DeploymentConfigs ===")
 	deploymentConfigs, err := builder.appsClient.DeploymentConfigs(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, deploymentConfig := range deploymentConfigs.Items {
-		fmt.Printf("Found %s/%s\n", deploymentConfig.Kind, deploymentConfig.Name)
+		logger.Debugf("Found %s/%s", deploymentConfig.Kind, deploymentConfig.Name)
 		resource := DeploymentConfig{Delegate: deploymentConfig}
 		builder.namespaceModel.AddResource(resource)
 	}
 
-	fmt.Println("=== Pods ===")
+	logger.Info("=== Pods ===")
 	pods, err := builder.coreClient.Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, pod := range pods.Items {
-		fmt.Printf("Found %s/%s with SA %s\n", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
+		logger.Debugf("Found %s/%s with SA %s", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
 		resource := Pod{Delegate: pod}
 		builder.namespaceModel.AddResource(resource)
 
@@ -171,14 +171,14 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		if added {
 			saRoleBindings := saResource.TheRoleBindings(roleBindings)
 			for _, roleBinding := range saRoleBindings {
-				fmt.Printf("For SA %s found RoleBinding %s/%s\n", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
+				logger.Debugf("For SA %s found RoleBinding %s/%s", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
 				rbResource := RoleBinding{Delegate: roleBinding}
 				builder.namespaceModel.AddResource(rbResource)
 				builder.namespaceModel.AddConnection(saResource, rbResource)
 			}
 			saClusterRoleBindings := saResource.TheClusterRoleBindings(builder.clusterRoleBindings)
 			for _, clusterRoleBinding := range saClusterRoleBindings {
-				fmt.Printf("For SA %s found ClusterRoleBinding %s/%s\n", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
+				logger.Debugf("For SA %s found ClusterRoleBinding %s/%s", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
 				rbResource := ClusterRoleBinding{Delegate: clusterRoleBinding}
 				builder.namespaceModel.AddResource(rbResource)
 				builder.namespaceModel.AddConnection(saResource, rbResource)
@@ -199,7 +199,7 @@ func (builder *ModelBuilder) connectResources() {
 				potentialTos := builder.namespaceModel.ResourcesByKind(kind)
 				connectedResources, connectionName := fromResource.ConnectedResources(kind, potentialTos)
 				for _, connectedResource := range connectedResources {
-					fmt.Printf("Connecting %s of kind %s to %s of kind %s with name %s\n",
+					logger.Debugf("Connecting %s of kind %s to %s of kind %s with name %s",
 						fromResource.Label(), fromResource.Kind(), connectedResource.Label(), connectedResource.Kind(), connectionName)
 					if connectionName != "" {
 						builder.namespaceModel.AddNamedConnection(fromResource, connectedResource, connectionName)
@@ -218,7 +218,7 @@ func (builder *ModelBuilder) addOwners() {
 		resourcesByKind := builder.namespaceModel.ResourcesByKind(kind)
 		for _, resource := range resourcesByKind {
 			for _, owner := range resource.OwnerReferences() {
-				fmt.Printf("Adding ownership of %s of kind %s to %s of kind %s\n",
+				logger.Debugf("Adding ownership of %s of kind %s to %s of kind %s",
 					resource.Label(), resource.Kind(), owner.Name, owner.Kind)
 				ownerResource := builder.namespaceModel.LookupOwner(owner)
 				builder.namespaceModel.AddNamedConnection(ownerResource, resource, "owns")

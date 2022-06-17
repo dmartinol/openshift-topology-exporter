@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	golog "log"
 	"os"
 	"path/filepath"
 
 	config "github.com/dmartinol/openshift-topology-exporter/pkg/config"
+	log "github.com/dmartinol/openshift-topology-exporter/pkg/log"
 	"github.com/dmartinol/openshift-topology-exporter/pkg/model"
 	t "github.com/dmartinol/openshift-topology-exporter/pkg/trasnformer"
 
@@ -28,12 +30,14 @@ var transformer = t.NewTransformer(formatter)
 
 func start() error {
 	exporterConfig = *config.ReadConfig()
-	fmt.Printf("Config -> %v\n", exporterConfig)
+	golog.Printf("Starting with configuration: %+v\n", exporterConfig)
+	log.InitLogger(exporterConfig)
 
 	config, err := connectCluster()
 	if err != nil {
 		return err
 	}
+	log.Info("Cluster connected")
 
 	topology, err := model.NewModelBuilder(exporterConfig).BuildForConfig(config)
 	if err != nil {

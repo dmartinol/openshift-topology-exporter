@@ -1,10 +1,10 @@
 package model
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
+	logger "github.com/dmartinol/openshift-topology-exporter/pkg/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,7 +15,7 @@ type NamespaceModel struct {
 }
 
 func (namespace NamespaceModel) Debug(header string) string {
-	fmt.Printf("[%s] Sizes for %s are %d, %d\n", header, namespace.name, len(namespace.resourcesByKind), len(namespace.connections))
+	logger.Debugf("[%s] Sizes for %s are %d, %d", header, namespace.name, len(namespace.resourcesByKind), len(namespace.connections))
 	return namespace.name
 }
 
@@ -35,11 +35,11 @@ func (namespace NamespaceModel) LookupByKindAndId(kind string, id string) Resour
 
 func (namespace NamespaceModel) AddResource(resource Resource) bool {
 	if namespace.LookupByKindAndId(resource.Kind(), resource.Id()) == nil {
-		fmt.Printf("Adding resource %s of kind %s\n", resource.Name(), resource.Kind())
+		logger.Debugf("Adding resource %s of kind %s", resource.Name(), resource.Kind())
 		namespace.resourcesByKind[resource.Kind()] = append(namespace.resourcesByKind[resource.Kind()], resource)
 		return true
 	}
-	fmt.Printf("Skipped existing resource %s of kind %s\n", resource.Name(), resource.Kind())
+	logger.Debugf("Skipped existing resource %s of kind %s", resource.Name(), resource.Kind())
 	return false
 }
 func (namespace NamespaceModel) LookupOwner(owner metav1.OwnerReference) Resource {
@@ -84,7 +84,7 @@ func (namespace NamespaceModel) AllResources() []Resource {
 func (namespace *NamespaceModel) AddConnection(from Resource, to Resource) *Connection {
 	for _, c := range namespace.connections {
 		if reflect.DeepEqual(c.From, from) && reflect.DeepEqual(c.To, to) {
-			fmt.Printf("Skipped existing connection from %s of kind %s and %s of kind %s\n", from.Name(), from.Kind(), to.Name(), to.Kind())
+			logger.Debugf("Skipped existing connection from %s of kind %s and %s of kind %s", from.Name(), from.Kind(), to.Name(), to.Kind())
 			return &c
 		}
 	}

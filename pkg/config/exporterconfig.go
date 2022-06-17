@@ -9,6 +9,8 @@ import (
 
 type ExporterConfig struct {
 	Namespaces []string `yaml:",flow"`
+	LogLevel   string
+	LogFile    string
 }
 
 func ReadConfig() *ExporterConfig {
@@ -18,10 +20,10 @@ func ReadConfig() *ExporterConfig {
 	}
 
 	exporterConfig := ExporterConfig{}
-	err2 := yaml.Unmarshal(yfile, &exporterConfig)
+	err = yaml.Unmarshal(yfile, &exporterConfig)
 
-	if err2 != nil {
-		log.Fatal(err2)
+	if err != nil {
+		log.Fatal(err)
 	}
 	return &exporterConfig
 }

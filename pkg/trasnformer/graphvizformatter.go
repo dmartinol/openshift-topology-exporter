@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	logger "github.com/dmartinol/openshift-topology-exporter/pkg/log"
 	"github.com/dmartinol/openshift-topology-exporter/pkg/model"
 )
 
@@ -60,7 +61,7 @@ func (formatter *GraphVizFormatter) AddNamespace(name string, resources []model.
 		}
 	}
 
-	fmt.Printf("Adding %d connections", len(connections))
+	logger.Debugf("Adding %d connections", len(connections))
 	for _, connection := range connections {
 		options := ""
 		if len(connection.Name) != 0 {
