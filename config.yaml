@@ -1,4 +1,5 @@
-a: 123
+loglevel: info
+logfile: exporter.log
 namespaces: 
-  - rhpam-cop
-  - rhsso-cop
+ - rhsso-cop
+ - rhpam-cop
