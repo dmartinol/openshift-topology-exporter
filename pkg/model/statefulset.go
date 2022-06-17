@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -39,7 +39,6 @@ func (s StatefulSet) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (s StatefulSet) ConnectedKinds() []string {
 	return []string{}
 }
-func (s StatefulSet) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-	return diagram.String()
+func (s StatefulSet) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }

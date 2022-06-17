@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -40,8 +40,8 @@ func (s ServiceAccount) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (s ServiceAccount) ConnectedKinds() []string {
 	return []string{}
 }
-func (s ServiceAccount) ConnectTo(kind string, resources []Resource) string {
-	return ""
+func (s ServiceAccount) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }
 
 func (s ServiceAccount) TheRoleBindings(roleBindings *authv1T.RoleBindingList) []authv1T.RoleBinding {

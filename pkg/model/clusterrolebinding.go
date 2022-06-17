@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -38,6 +38,6 @@ func (c ClusterRoleBinding) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (c ClusterRoleBinding) ConnectedKinds() []string {
 	return []string{}
 }
-func (c ClusterRoleBinding) ConnectTo(kind string, resources []Resource) string {
-	return ""
+func (c ClusterRoleBinding) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }

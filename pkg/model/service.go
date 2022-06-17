@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -39,17 +39,16 @@ func (s Service) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (s Service) ConnectedKinds() []string {
 	return []string{"Pod"}
 }
-func (s Service) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-
+func (s Service) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	connected := make([]Resource, 0)
 	for _, resource := range resources {
 		pod := resource.(Pod)
 		if s.matchSelector(pod) {
-			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", s.Id(), pod.Id()))
+			connected = append(connected, pod)
 		}
 	}
 
-	return diagram.String()
+	return connected, ""
 }
 func (s Service) matchSelector(pod Pod) bool {
 	for label, value := range s.Delegate.Spec.Selector {

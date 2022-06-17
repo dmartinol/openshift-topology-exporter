@@ -8,9 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/dmartinol/openshift-topology-exporter/pkg/exporter"
+	"github.com/dmartinol/openshift-topology-exporter/pkg/model"
+	t "github.com/dmartinol/openshift-topology-exporter/pkg/trasnformer"
 
 	authv1T "github.com/openshift/api/authorization/v1"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
@@ -29,8 +29,6 @@ type ExporterConfig struct {
 	Namespaces []string `yaml:",flow"`
 }
 
-var resourcesByKind map[string][]exporter.Resource = make(map[string][]exporter.Resource)
-
 func main() {
 	err := start()
 	if err != nil {
@@ -46,7 +44,11 @@ var appsV1Client *k8appsv1client.AppsV1Client
 var coreClient *corev1client.CoreV1Client
 var authClient *authv1.AuthorizationV1Client
 
-var diagram strings.Builder = strings.Builder{}
+var topologyModel = *model.NewTopologyModel()
+var namespaceModel *model.NamespaceModel
+
+var formatter = t.NewGraphVizFormatter()
+var transformer = t.NewTransformer(formatter)
 
 func start() error {
 	exporterConfig = readConfig()
@@ -83,12 +85,7 @@ func start() error {
 		return err
 	}
 
-	file, err := os.Create("diagram.dot")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	file.WriteString(diagram.String())
+	transformer.Transform(topologyModel)
 	return nil
 }
 
@@ -130,18 +127,8 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
-var clusterCount int = 0
-
 func diagramOf(ns string) error {
-	diagram.WriteString(fmt.Sprintf("subgraph cluster_%d {\n", clusterCount))
-	diagram.WriteString("style=filled;\n")
-	diagram.WriteString("color=lightgrey;\n")
-	diagram.WriteString("node [style=filled,color=white];\n")
-	diagram.WriteString(fmt.Sprintf("label =\"%s\";\n", ns))
-	clusterCount++
-
-	//TBD: we should move to per NS model builder
-	resourcesByKind = make(map[string][]exporter.Resource)
+	namespaceModel = topologyModel.AddNamespace(ns)
 
 	fmt.Printf("Running on NS %s\n", ns)
 	roleBindings, err := authClient.RoleBindings(ns).List(context.TODO(), metav1.ListOptions{})
@@ -159,8 +146,8 @@ func diagramOf(ns string) error {
 	}
 	for _, route := range routes.Items {
 		fmt.Printf("Found %s/%s\n", route.Kind, route.Name)
-		resource := exporter.Route{Delegate: route}
-		addResource(resource)
+		resource := model.Route{Delegate: route}
+		namespaceModel.AddResource(resource)
 	}
 
 	fmt.Println("=== Services ===")
@@ -170,8 +157,8 @@ func diagramOf(ns string) error {
 	}
 	for _, service := range services.Items {
 		fmt.Printf("Found %s/%s\n", service.Kind, service.Name)
-		resource := exporter.Service{Delegate: service}
-		addResource(resource)
+		resource := model.Service{Delegate: service}
+		namespaceModel.AddResource(resource)
 	}
 
 	fmt.Println("=== Deployments ===")
@@ -181,8 +168,8 @@ func diagramOf(ns string) error {
 	}
 	for _, deployment := range deployments.Items {
 		fmt.Printf("Found %s/%s\n", deployment.Kind, deployment.Name)
-		resource := exporter.Deployment{Delegate: deployment}
-		addResource(resource)
+		resource := model.Deployment{Delegate: deployment}
+		namespaceModel.AddResource(resource)
 	}
 
 	fmt.Println("=== StatefulSets ===")
@@ -192,8 +179,8 @@ func diagramOf(ns string) error {
 	}
 	for _, statefulSet := range statefulSets.Items {
 		fmt.Printf("Found %s/%s\n", statefulSet.Kind, statefulSet.Name)
-		resource := exporter.StatefulSet{Delegate: statefulSet}
-		addResource(resource)
+		resource := model.StatefulSet{Delegate: statefulSet}
+		namespaceModel.AddResource(resource)
 	}
 
 	fmt.Println("=== DeploymentConfigs ===")
@@ -203,8 +190,8 @@ func diagramOf(ns string) error {
 	}
 	for _, deploymentConfig := range deploymentConfigs.Items {
 		fmt.Printf("Found %s/%s\n", deploymentConfig.Kind, deploymentConfig.Name)
-		resource := exporter.DeploymentConfig{Delegate: deploymentConfig}
-		addResource(resource)
+		resource := model.DeploymentConfig{Delegate: deploymentConfig}
+		namespaceModel.AddResource(resource)
 	}
 
 	fmt.Println("=== Pods ===")
@@ -214,29 +201,29 @@ func diagramOf(ns string) error {
 	}
 	for _, pod := range pods.Items {
 		fmt.Printf("Found %s/%s with SA %s\n", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
-		resource := exporter.Pod{Delegate: pod}
-		addResource(resource)
+		resource := model.Pod{Delegate: pod}
+		namespaceModel.AddResource(resource)
 
 		serviceAccount, err := coreClient.ServiceAccounts(ns).Get(context.TODO(), pod.Spec.ServiceAccountName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		saResource := exporter.ServiceAccount{Delegate: *serviceAccount}
-		added := addResource(saResource)
+		saResource := model.ServiceAccount{Delegate: *serviceAccount}
+		added := namespaceModel.AddResource(saResource)
 		if added {
 			saRoleBindings := saResource.TheRoleBindings(roleBindings)
 			for _, roleBinding := range saRoleBindings {
 				fmt.Printf("For SA %s found RoleBinding %s/%s\n", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
-				rbResource := exporter.RoleBinding{Delegate: roleBinding}
-				addResource(rbResource)
-				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
+				rbResource := model.RoleBinding{Delegate: roleBinding}
+				namespaceModel.AddResource(rbResource)
+				namespaceModel.AddConnection(saResource, rbResource)
 			}
 			saClusterRoleBindings := saResource.TheClusterRoleBindings(clusterRoleBindings)
 			for _, clusterRoleBinding := range saClusterRoleBindings {
 				fmt.Printf("For SA %s found ClusterRoleBinding %s/%s\n", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
-				rbResource := exporter.ClusterRoleBinding{Delegate: clusterRoleBinding}
-				addResource(rbResource)
-				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", saResource.Id(), rbResource.Id()))
+				rbResource := model.ClusterRoleBinding{Delegate: clusterRoleBinding}
+				namespaceModel.AddResource(rbResource)
+				namespaceModel.AddConnection(saResource, rbResource)
 			}
 		}
 	}
@@ -244,80 +231,41 @@ func diagramOf(ns string) error {
 	addOwners()
 	connectResources()
 
-	diagram.WriteString("\n}")
 	return nil
 }
 
-func addResource(resource exporter.Resource) bool {
-	if lookupByKindAndId(resource.Kind(), resource.Id()) == nil {
-		resourcesByKind[resource.Kind()] = append(resourcesByKind[resource.Kind()], resource)
-
-		color, hasStatusColor := resource.StatusColor()
-		if hasStatusColor {
-			diagram.WriteString(fmt.Sprintf("\"%s\" [ label=\"%s\", image=\"%s\", labelloc=b, color=\"%s\" ];\n",
-				resource.Id(), resource.Label(), resource.Icon(), color))
-		} else {
-			diagram.WriteString(fmt.Sprintf("\"%s\" [ label=\"%s\", image=\"%s\", labelloc=b ];\n",
-				resource.Id(), resource.Label(), resource.Icon()))
-		}
-		fmt.Printf("Added instance %s of kind %s\n", resource.Label(), resource.Kind())
-		return true
-	}
-	fmt.Printf("Skipped already added instance %s of kind %s\n", resource.Label(), resource.Kind())
-	return false
-}
-
+// TODO move to builder
 func connectResources() {
-	for _, owners := range resourcesByKind {
-		for _, owner := range owners {
-			for _, kind := range owner.ConnectedKinds() {
-				fmt.Printf("Connecting %s of kind %s to %v of kind %s\n",
-					owner.Label(), owner.Kind(), len(resourcesByKind[kind]), kind)
-				diagram.WriteString(owner.ConnectTo(kind, resourcesByKind[kind]))
+	for _, kind := range namespaceModel.AllKinds() {
+		for _, fromResource := range namespaceModel.ResourcesByKind(kind) {
+			for _, kind := range fromResource.ConnectedKinds() {
+				potentialTos := namespaceModel.ResourcesByKind(kind)
+				connectedResources, connectionName := fromResource.ConnectedResources(kind, potentialTos)
+				for _, connectedResource := range connectedResources {
+					fmt.Printf("Connecting %s of kind %s to %s of kind %s with name %s\n",
+						fromResource.Label(), fromResource.Kind(), connectedResource.Label(), connectedResource.Kind(), connectionName)
+					if connectionName != "" {
+						namespaceModel.AddNamedConnection(fromResource, connectedResource, connectionName)
+					} else {
+						namespaceModel.AddConnection(fromResource, connectedResource)
+					}
+					namespaceModel.AllConnections()
+				}
 			}
 		}
-	}
-}
-
-func lookupByKindAndId(kind string, id string) exporter.Resource {
-	for _, resource := range resourcesByKind[kind] {
-		if strings.Compare(id, resource.Id()) == 0 {
-			return resource
-		}
-	}
-
-	return nil
-}
-
-func lookupOwner(owner metav1.OwnerReference) exporter.Resource {
-	for _, resources := range resourcesByKind {
-		for _, resource := range resources {
-			if resource.IsOwnerOf(owner) {
-				return resource
-			}
-		}
-	}
-
-	if strings.Compare(owner.Kind, "ClusterServiceVersion") == 0 {
-		csvResource := exporter.ClusterServiceVersion{Delegate: owner}
-		addResource(csvResource)
-		return csvResource
-	} else {
-		// TODO Just guessing ....
-		customResource := exporter.CustomResource{Delegate: owner}
-		addResource(customResource)
-		return customResource
 	}
 }
 
 func addOwners() {
-	for _, resources := range resourcesByKind {
-		for _, resource := range resources {
+	for _, kind := range namespaceModel.AllKinds() {
+		resourcesByKind := namespaceModel.ResourcesByKind(kind)
+		for _, resource := range resourcesByKind {
 			for _, owner := range resource.OwnerReferences() {
 				fmt.Printf("Adding ownership of %s of kind %s to %s of kind %s\n",
 					resource.Label(), resource.Kind(), owner.Name, owner.Kind)
-				ownerResource := lookupOwner(owner)
-				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [label=\"owns\"];\n", ownerResource.Id(), resource.Id()))
+				ownerResource := namespaceModel.LookupOwner(owner)
+				namespaceModel.AddNamedConnection(ownerResource, resource, "owns")
+				namespaceModel.AllConnections()
 			}
 		}
 	}
@@ -335,29 +283,11 @@ func clusterDiagramOf(namespaces []string) error {
 		fmt.Printf("Found ClusterRoleBindings %s/%s\n", clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
 	}
 
-	diagram.Reset()
-	diagram.WriteString("digraph G {\n")
-	diagram.WriteString("node [shape=plaintext];\n")
-	legend()
 	for _, namespace := range namespaces {
-		diagram.WriteString("\n")
 		err := diagramOf(namespace)
 		if err != nil {
 			return err
 		}
 	}
-	diagram.WriteString("\n}")
 	return nil
-}
-
-func legend() {
-	diagram.WriteString("subgraph legend {\n")
-	diagram.WriteString("legend [\n")
-	diagram.WriteString("label=<<TABLE border=\"0\" cellspacing=\"2\" cellpadding=\"0\">\n")
-	diagram.WriteString(fmt.Sprintf("<TR><TD border=\"0\" bgcolor=\"%s\">Completed</TD></TR>\n", exporter.CompletedColor))
-	diagram.WriteString(fmt.Sprintf("<TR><TD border=\"0\" bgcolor=\"%s\">Running</TD></TR>\n", exporter.RunningColor))
-	diagram.WriteString(fmt.Sprintf("<TR><TD border=\"0\" bgcolor=\"%s\">Failed</TD></TR>\n", exporter.FailedColor))
-	diagram.WriteString("<TR><TD>Legend</TD></TR>\n")
-	diagram.WriteString("</TABLE>>];\n")
-	diagram.WriteString("}\n")
 }

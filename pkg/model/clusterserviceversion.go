@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"strings"
@@ -34,9 +34,8 @@ func (csv ClusterServiceVersion) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (csv ClusterServiceVersion) ConnectedKinds() []string {
 	return []string{""}
 }
-func (csv ClusterServiceVersion) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-	return diagram.String()
+func (csv ClusterServiceVersion) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }
 
 func (csv ClusterServiceVersion) StatusColor() (string, bool) {

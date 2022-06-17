@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -42,16 +42,16 @@ func (p Pod) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (p Pod) ConnectedKinds() []string {
 	return []string{"ServiceAccount"}
 }
-func (p Pod) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
+func (p Pod) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	connected := make([]Resource, 0)
 	for _, resource := range resources {
 		serviceAccount := resource.(ServiceAccount)
 		if strings.Compare(p.Delegate.Spec.ServiceAccountName, serviceAccount.Name()) == 0 &&
 			strings.Compare(p.Delegate.Namespace, serviceAccount.Delegate.Namespace) == 0 {
-			diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\"\n", p.Id(), serviceAccount.Id()))
+			connected = append(connected, serviceAccount)
 		}
 	}
-	return diagram.String()
+	return connected, ""
 }
 
 func (p Pod) StatusColor() (string, bool) {

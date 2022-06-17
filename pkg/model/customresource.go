@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -35,11 +35,9 @@ func (cr CustomResource) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (cr CustomResource) ConnectedKinds() []string {
 	return []string{""}
 }
-func (cr CustomResource) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-	return diagram.String()
+func (cr CustomResource) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }
-
 func (cr CustomResource) StatusColor() (string, bool) {
 	return "", false
 }

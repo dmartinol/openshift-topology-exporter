@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,5 +16,5 @@ type Resource interface {
 	IsOwnerOf(owner metav1.OwnerReference) bool
 
 	ConnectedKinds() []string
-	ConnectTo(kind string, resources []Resource) string
+	ConnectedResources(kind string, resources []Resource) ([]Resource, string)
 }

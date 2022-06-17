@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -45,6 +45,6 @@ func (d DeploymentConfig) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (d DeploymentConfig) ConnectedKinds() []string {
 	return []string{}
 }
-func (d DeploymentConfig) ConnectTo(kind string, resources []Resource) string {
-	return ""
+func (d DeploymentConfig) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }

@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -39,18 +39,17 @@ func (r Route) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (r Route) ConnectedKinds() []string {
 	return []string{"Service"}
 }
-func (r Route) ConnectTo(kind string, resources []Resource) string {
-	diagram := strings.Builder{}
-
+func (r Route) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	connected := make([]Resource, 0)
 	if strings.Compare(r.Delegate.Spec.To.Kind, "Service") == 0 {
 		for _, resource := range resources {
 			service := resource.(Service)
 			serviceName := r.Delegate.Spec.To.Name
 			if strings.Compare(serviceName, service.Name()) == 0 {
-				diagram.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [label=\"exposes\"];\n", r.Id(), service.Id()))
+				connected = append(connected, service)
 			}
 		}
 	}
 
-	return diagram.String()
+	return connected, "exposed"
 }

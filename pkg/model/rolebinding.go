@@ -1,4 +1,4 @@
-package exporter
+package model
 
 import (
 	"fmt"
@@ -38,6 +38,6 @@ func (r RoleBinding) IsOwnerOf(owner metav1.OwnerReference) bool {
 func (r RoleBinding) ConnectedKinds() []string {
 	return []string{}
 }
-func (r RoleBinding) ConnectTo(kind string, resources []Resource) string {
-	return ""
+func (r RoleBinding) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
+	return []Resource{}, ""
 }
