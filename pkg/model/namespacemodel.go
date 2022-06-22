@@ -91,7 +91,7 @@ func (namespace *NamespaceModel) AddConnection(from Resource, to Resource) *Conn
 
 	connection := Connection{From: from, To: to}
 	namespace.connections = append(namespace.connections, connection)
-	return &connection
+	return &namespace.connections[len(namespace.connections)-1]
 }
 func (namespace *NamespaceModel) AddNamedConnection(from Resource, to Resource, name string) *Connection {
 	connection := namespace.AddConnection(from, to)

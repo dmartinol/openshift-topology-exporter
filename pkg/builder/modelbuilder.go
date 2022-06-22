@@ -1,10 +1,12 @@
-package model
+package builder
 
 import (
 	"context"
 
 	"github.com/dmartinol/openshift-topology-exporter/pkg/config"
 	logger "github.com/dmartinol/openshift-topology-exporter/pkg/log"
+	model "github.com/dmartinol/openshift-topology-exporter/pkg/model"
+	knative "github.com/dmartinol/openshift-topology-exporter/pkg/model/knative"
 	authv1T "github.com/openshift/api/authorization/v1"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	authv1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
@@ -12,6 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	eventingv1 "knative.dev/eventing/pkg/client/clientset/versioned/typed/eventing/v1"
+	sourcesv1 "knative.dev/eventing/pkg/client/clientset/versioned/typed/sources/v1"
+	servingv1 "knative.dev/serving/pkg/client/clientset/versioned/typed/serving/v1"
 
 	"k8s.io/client-go/rest"
 )
@@ -23,19 +28,22 @@ type ModelBuilder struct {
 	appsV1Client   *k8appsv1client.AppsV1Client
 	coreClient     *corev1client.CoreV1Client
 	authClient     *authv1.AuthorizationV1Client
+	eventingClient *eventingv1.EventingV1Client
+	servingClient  *servingv1.ServingV1Client
+	sourcesClient  *sourcesv1.SourcesV1Client
 
-	topologyModel       *TopologyModel
-	namespaceModel      *NamespaceModel
+	topologyModel       *model.TopologyModel
+	namespaceModel      *model.NamespaceModel
 	clusterRoleBindings *authv1T.ClusterRoleBindingList
 }
 
 func NewModelBuilder(exporterConfig config.ExporterConfig) *ModelBuilder {
 	builder := ModelBuilder{exporterConfig: exporterConfig}
-	builder.topologyModel = NewTopologyModel()
+	builder.topologyModel = model.NewTopologyModel()
 	return &builder
 }
 
-func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*TopologyModel, error) {
+func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*model.TopologyModel, error) {
 	var err error
 	builder.routeClient, err = routev1.NewForConfig(config)
 	if err != nil {
@@ -54,6 +62,21 @@ func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*TopologyModel
 		return nil, err
 	}
 	builder.authClient, err = authv1.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.eventingClient, err = eventingv1.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.servingClient, err = servingv1.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.sourcesClient, err = sourcesv1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +127,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, route := range routes.Items {
 		logger.Debugf("Found %s/%s", route.Kind, route.Name)
-		resource := Route{Delegate: route}
+		resource := model.Route{Delegate: route}
 		builder.namespaceModel.AddResource(resource)
 	}
 
@@ -115,8 +138,12 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, service := range services.Items {
 		logger.Debugf("Found %s/%s", service.Kind, service.Name)
-		resource := Service{Delegate: service}
-		builder.namespaceModel.AddResource(resource)
+		if model.IsKNativeSkippableService(service) {
+			logger.Infof("Skipping Knative service %s/%s", service.Kind, service.Name)
+		} else {
+			resource := model.Service{Delegate: service}
+			builder.namespaceModel.AddResource(resource)
+		}
 	}
 
 	logger.Info("=== Deployments ===")
@@ -126,7 +153,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, deployment := range deployments.Items {
 		logger.Debugf("Found %s/%s", deployment.Kind, deployment.Name)
-		resource := Deployment{Delegate: deployment}
+		resource := model.Deployment{Delegate: deployment}
 		builder.namespaceModel.AddResource(resource)
 	}
 
@@ -137,7 +164,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, statefulSet := range statefulSets.Items {
 		logger.Debugf("Found %s/%s", statefulSet.Kind, statefulSet.Name)
-		resource := StatefulSet{Delegate: statefulSet}
+		resource := model.StatefulSet{Delegate: statefulSet}
 		builder.namespaceModel.AddResource(resource)
 	}
 
@@ -148,7 +175,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, deploymentConfig := range deploymentConfigs.Items {
 		logger.Debugf("Found %s/%s", deploymentConfig.Kind, deploymentConfig.Name)
-		resource := DeploymentConfig{Delegate: deploymentConfig}
+		resource := model.DeploymentConfig{Delegate: deploymentConfig}
 		builder.namespaceModel.AddResource(resource)
 	}
 
@@ -159,33 +186,76 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 	for _, pod := range pods.Items {
 		logger.Debugf("Found %s/%s with SA %s", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
-		resource := Pod{Delegate: pod}
+		resource := model.Pod{Delegate: pod}
 		builder.namespaceModel.AddResource(resource)
 
 		serviceAccount, err := builder.coreClient.ServiceAccounts(namespace).Get(context.TODO(), pod.Spec.ServiceAccountName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		saResource := ServiceAccount{Delegate: *serviceAccount}
+		saResource := model.ServiceAccount{Delegate: *serviceAccount}
 		added := builder.namespaceModel.AddResource(saResource)
 		if added {
 			saRoleBindings := saResource.TheRoleBindings(roleBindings)
 			for _, roleBinding := range saRoleBindings {
 				logger.Debugf("For SA %s found RoleBinding %s/%s", serviceAccount.Name, roleBinding.RoleRef.Name, roleBinding.UserNames)
-				rbResource := RoleBinding{Delegate: roleBinding}
+				rbResource := model.RoleBinding{Delegate: roleBinding}
 				builder.namespaceModel.AddResource(rbResource)
 				builder.namespaceModel.AddConnection(saResource, rbResource)
 			}
 			saClusterRoleBindings := saResource.TheClusterRoleBindings(builder.clusterRoleBindings)
 			for _, clusterRoleBinding := range saClusterRoleBindings {
 				logger.Debugf("For SA %s found ClusterRoleBinding %s/%s", serviceAccount.Name, clusterRoleBinding.RoleRef.Name, clusterRoleBinding.UserNames)
-				rbResource := ClusterRoleBinding{Delegate: clusterRoleBinding}
+				rbResource := model.ClusterRoleBinding{Delegate: clusterRoleBinding}
 				builder.namespaceModel.AddResource(rbResource)
 				builder.namespaceModel.AddConnection(saResource, rbResource)
 			}
 		}
 	}
 
+	logger.Info("=== Knative.Service ===")
+	knativeServices, err := builder.servingClient.Services(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, knativeService := range knativeServices.Items {
+		logger.Debugf("Found %s/%s", knativeService.Kind, knativeService.Name)
+		resource := knative.Service{Delegate: knativeService}
+		builder.namespaceModel.AddResource(resource)
+	}
+
+	logger.Info("=== Knative.SinkBindings ===")
+	sinkBindings, err := builder.sourcesClient.SinkBindings(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, sinkBinding := range sinkBindings.Items {
+		logger.Debugf("Found %s/%s", sinkBinding.Kind, sinkBinding.Name)
+		resource := knative.SinkBinding{Delegate: sinkBinding}
+		builder.namespaceModel.AddResource(resource)
+	}
+
+	logger.Info("=== Knative.Brokers ===")
+	brokers, err := builder.eventingClient.Brokers(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, broker := range brokers.Items {
+		logger.Debugf("Found %s/%s", broker.Kind, broker.Name)
+		resource := knative.Broker{Delegate: broker}
+		builder.namespaceModel.AddResource(resource)
+	}
+
+	logger.Info("=== Knative.Triggers ===")
+	triggers, err := builder.eventingClient.Triggers(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, trigger := range triggers.Items {
+		logger.Debugf("Found %s/%s", trigger.Kind, trigger.Name)
+		resource := knative.Trigger{Delegate: trigger}
+		builder.namespaceModel.AddResource(resource)
+	}
 	builder.addOwners()
 	builder.connectResources()
 

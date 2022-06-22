@@ -53,11 +53,11 @@ func (formatter *GraphVizFormatter) AddNamespace(name string, resources []model.
 	for _, resource := range resources {
 		color, hasStatusColor := resource.StatusColor()
 		if hasStatusColor {
-			formatter.diagram.WriteString(fmt.Sprintf("\"%s\" [ label=\"%s\", image=\"%s\", labelloc=b, color=\"%s\" ];\n",
-				resource.Id(), resource.Label(), resource.Icon(), color))
+			formatter.diagram.WriteString(fmt.Sprintf("\"%s\" [ class=\"%s\", label=\"%s\", image=\"%s\", labelloc=b, color=\"%s\" ];\n",
+				resource.Id(), resource.Kind(), resource.Label(), resource.Icon(), color))
 		} else {
-			formatter.diagram.WriteString(fmt.Sprintf("\"%s\" [ label=\"%s\", image=\"%s\", labelloc=b ];\n",
-				resource.Id(), resource.Label(), resource.Icon()))
+			formatter.diagram.WriteString(fmt.Sprintf("\"%s\" [ class=\"%s\", label=\"%s\", image=\"%s\", labelloc=b ];\n",
+				resource.Id(), resource.Kind(), resource.Label(), resource.Icon()))
 		}
 	}
 

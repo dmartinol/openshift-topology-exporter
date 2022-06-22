@@ -12,6 +12,14 @@ type Service struct {
 	Delegate v1.Service
 }
 
+func IsKNativeSkippableService(service v1.Service) bool {
+	for label, _ := range service.ObjectMeta.Labels {
+		if strings.Contains(label, ".knative.") {
+			return true
+		}
+	}
+	return false
+}
 func (s Service) Kind() string {
 	return "Service"
 }
