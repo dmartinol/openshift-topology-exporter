@@ -9,7 +9,7 @@ import (
 
 	config "github.com/dmartinol/openshift-topology-exporter/pkg/config"
 	log "github.com/dmartinol/openshift-topology-exporter/pkg/log"
-	"github.com/dmartinol/openshift-topology-exporter/pkg/model"
+	"github.com/dmartinol/openshift-topology-exporter/pkg/builder"
 	t "github.com/dmartinol/openshift-topology-exporter/pkg/trasnformer"
 
 	"k8s.io/client-go/rest"
@@ -39,7 +39,7 @@ func start() error {
 	}
 	log.Info("Cluster connected")
 
-	topology, err := model.NewModelBuilder(exporterConfig).BuildForConfig(config)
+	topology, err := builder.NewModelBuilder(exporterConfig).BuildForConfig(config)
 	if err != nil {
 		return err
 	}
