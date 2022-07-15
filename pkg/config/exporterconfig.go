@@ -8,10 +8,11 @@ import (
 )
 
 type ExporterConfig struct {
-	Namespaces []string `yaml:",flow"`
-	LogLevel   string
-	LogFile    string
-	KNative    bool
+	Namespaces     []string `yaml:",flow"`
+	FormatterClass string
+	LogLevel       string
+	LogFile        string
+	KNative        bool
 }
 
 func ReadConfig() *ExporterConfig {

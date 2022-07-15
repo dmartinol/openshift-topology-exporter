@@ -10,7 +10,7 @@ import (
 	"github.com/dmartinol/openshift-topology-exporter/pkg/builder"
 	config "github.com/dmartinol/openshift-topology-exporter/pkg/config"
 	log "github.com/dmartinol/openshift-topology-exporter/pkg/log"
-	t "github.com/dmartinol/openshift-topology-exporter/pkg/trasnformer"
+	t "github.com/dmartinol/openshift-topology-exporter/pkg/transformer"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -25,13 +25,14 @@ func main() {
 }
 
 var exporterConfig config.ExporterConfig
-var formatter = t.NewGraphVizFormatter()
-var transformer = t.NewTransformer(formatter)
 
 func start() error {
 	exporterConfig = *config.ReadConfig()
 	golog.Printf("Starting with configuration: %+v\n", exporterConfig)
 	log.InitLogger(exporterConfig)
+
+	formatter := t.NewFormatterForConfig(exporterConfig)
+	transformer := t.NewTransformer(formatter)
 
 	config, err := connectCluster()
 	if err != nil {
