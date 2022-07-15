@@ -69,7 +69,7 @@ func (formatter *MermaidFormatter) BuildOutput() (string, error) {
 	formatter.diagram.WriteString("\n")
 	output := formatter.diagram.String()
 
-	file, err := os.Create("diagram.md")
+	file, err := os.Create("diagram.mermaid")
 	if err != nil {
 		return "", err
 	}
