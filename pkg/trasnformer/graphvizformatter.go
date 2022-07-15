@@ -72,14 +72,15 @@ func (formatter *GraphVizFormatter) AddNamespace(name string, resources []model.
 	formatter.diagram.WriteString("\n}")
 }
 
-func (formatter *GraphVizFormatter) BuildOutput() error {
+func (formatter *GraphVizFormatter) BuildOutput() (string, error) {
 	formatter.diagram.WriteString("\n}")
+	output := formatter.diagram.String()
 
 	file, err := os.Create("diagram.dot")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
-	file.WriteString(formatter.diagram.String())
-	return nil
+	file.WriteString(output)
+	return output, nil
 }

@@ -213,48 +213,50 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		}
 	}
 
-	logger.Info("=== Knative.Service ===")
-	knativeServices, err := builder.servingClient.Services(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, knativeService := range knativeServices.Items {
-		logger.Debugf("Found %s/%s", knativeService.Kind, knativeService.Name)
-		resource := knative.Service{Delegate: knativeService}
-		builder.namespaceModel.AddResource(resource)
-	}
+	if builder.exporterConfig.KNative {
+		logger.Info("=== Knative.Service ===")
+		knativeServices, err := builder.servingClient.Services(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, knativeService := range knativeServices.Items {
+			logger.Debugf("Found %s/%s", knativeService.Kind, knativeService.Name)
+			resource := knative.Service{Delegate: knativeService}
+			builder.namespaceModel.AddResource(resource)
+		}
 
-	logger.Info("=== Knative.SinkBindings ===")
-	sinkBindings, err := builder.sourcesClient.SinkBindings(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, sinkBinding := range sinkBindings.Items {
-		logger.Debugf("Found %s/%s", sinkBinding.Kind, sinkBinding.Name)
-		resource := knative.SinkBinding{Delegate: sinkBinding}
-		builder.namespaceModel.AddResource(resource)
-	}
+		logger.Info("=== Knative.SinkBindings ===")
+		sinkBindings, err := builder.sourcesClient.SinkBindings(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, sinkBinding := range sinkBindings.Items {
+			logger.Debugf("Found %s/%s", sinkBinding.Kind, sinkBinding.Name)
+			resource := knative.SinkBinding{Delegate: sinkBinding}
+			builder.namespaceModel.AddResource(resource)
+		}
 
-	logger.Info("=== Knative.Brokers ===")
-	brokers, err := builder.eventingClient.Brokers(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, broker := range brokers.Items {
-		logger.Debugf("Found %s/%s", broker.Kind, broker.Name)
-		resource := knative.Broker{Delegate: broker}
-		builder.namespaceModel.AddResource(resource)
-	}
+		logger.Info("=== Knative.Brokers ===")
+		brokers, err := builder.eventingClient.Brokers(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, broker := range brokers.Items {
+			logger.Debugf("Found %s/%s", broker.Kind, broker.Name)
+			resource := knative.Broker{Delegate: broker}
+			builder.namespaceModel.AddResource(resource)
+		}
 
-	logger.Info("=== Knative.Triggers ===")
-	triggers, err := builder.eventingClient.Triggers(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, trigger := range triggers.Items {
-		logger.Debugf("Found %s/%s", trigger.Kind, trigger.Name)
-		resource := knative.Trigger{Delegate: trigger}
-		builder.namespaceModel.AddResource(resource)
+		logger.Info("=== Knative.Triggers ===")
+		triggers, err := builder.eventingClient.Triggers(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, trigger := range triggers.Items {
+			logger.Debugf("Found %s/%s", trigger.Kind, trigger.Name)
+			resource := knative.Trigger{Delegate: trigger}
+			builder.namespaceModel.AddResource(resource)
+		}
 	}
 	builder.addOwners()
 	builder.connectResources()

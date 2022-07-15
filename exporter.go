@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dmartinol/openshift-topology-exporter/pkg/builder"
 	config "github.com/dmartinol/openshift-topology-exporter/pkg/config"
 	log "github.com/dmartinol/openshift-topology-exporter/pkg/log"
-	"github.com/dmartinol/openshift-topology-exporter/pkg/builder"
 	t "github.com/dmartinol/openshift-topology-exporter/pkg/trasnformer"
 
 	"k8s.io/client-go/rest"
@@ -43,12 +43,17 @@ func start() error {
 	if err != nil {
 		return err
 	}
-	transformer.Transform(*topology)
-	return nil
+	output, err := transformer.Transform(*topology)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Outout is %s", output)
+	return err
 }
 
 func connectCluster() (*rest.Config, error) {
 	var kubeconfig *string
+
 	if home := homeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "")
 	} else {

@@ -11,6 +11,7 @@ type ExporterConfig struct {
 	Namespaces []string `yaml:",flow"`
 	LogLevel   string
 	LogFile    string
+	KNative    bool
 }
 
 func ReadConfig() *ExporterConfig {

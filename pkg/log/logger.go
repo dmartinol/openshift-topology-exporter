@@ -59,3 +59,9 @@ func Warn(args ...interface{}) {
 func Warnf(template string, args ...interface{}) {
 	logger.Warnf(template, args...)
 }
+func Fatal(args ...interface{}) {
+	logger.Fatal(args)
+}
+func Fatalf(template string, args ...interface{}) {
+	logger.Fatalf(template, args...)
+}

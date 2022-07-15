@@ -12,10 +12,10 @@ func NewTransformer(formatter Formatter) *Transformer {
 	return &Transformer{formatter: formatter}
 }
 
-func (transformer Transformer) Transform(topologyModel model.TopologyModel) {
+func (transformer Transformer) Transform(topologyModel model.TopologyModel) (string, error) {
 	transformer.formatter.Init()
 	for _, namespace := range topologyModel.AllNamespaces() {
 		transformer.formatter.AddNamespace(namespace.Name(), namespace.AllResources(), namespace.AllConnections())
 	}
-	transformer.formatter.BuildOutput()
+	return transformer.formatter.BuildOutput()
 }
